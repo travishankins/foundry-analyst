@@ -7,8 +7,13 @@
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^14.4.3",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.10.1",
+    "remark-gfm": "^4.0.1",
     "web-vitals": "^3.1.0"
   },
   "overrides": {
@@ -17,6 +22,8 @@
   },
   "scripts": {
     "start": "BROWSER=none WDS_SOCKET_PORT=0 vite --port 3000",
+    "api": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "api:mock": "cd backend && MOCK_AGENTS=1 .venv/bin/uvicorn app.main:app --reload --port 8000",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest"
