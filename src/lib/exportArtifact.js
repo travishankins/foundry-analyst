@@ -17,21 +17,45 @@ export async function exportPng(node, title) {
   download(await capture(node), `${slug(title)}.png`);
 }
 
-export async function exportPdf(node, title) {
+const loadImage = (src) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not read the captured image'));
+    img.src = src;
+  });
+
+async function buildPdf(node) {
   const [{ jsPDF }, dataUrl] = await Promise.all([import('jspdf'), capture(node)]);
+  const img = await loadImage(dataUrl);
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = 24;
-  const { width, height } = pdf.getImageProperties(dataUrl);
   const imgW = pageW - margin * 2;
-  const imgH = (height * imgW) / width;
   const usableH = pageH - margin * 2;
+  // Source pixels that fit on one page at the scaled width
+  const sliceH = Math.floor((usableH * img.width) / imgW);
 
-  // Long reports: place the same image on each page, shifted up by one page height
-  for (let offset = 0; offset < imgH; offset += usableH) {
-    if (offset > 0) pdf.addPage();
-    pdf.addImage(dataUrl, 'PNG', margin, margin - offset, imgW, imgH);
+  // Crop one page-sized slice at a time so page margins stay clean
+  for (let y = 0, page = 0; y < img.height; y += sliceH, page++) {
+    const h = Math.min(sliceH, img.height - y);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, y, img.width, h, 0, 0, img.width, h);
+    if (page > 0) pdf.addPage();
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', margin, margin, imgW, (h * imgW) / img.width);
   }
-  pdf.save(`${slug(title)}.pdf`);
+  return pdf;
+}
+
+export async function exportPdf(node, title) {
+  (await buildPdf(node)).save(`${slug(title)}.pdf`);
+}
+
+/** Base64 PDF (no data-URI prefix) for sending to the share API. */
+export async function pdfBase64(node) {
+  const uri = (await buildPdf(node)).output('datauristring');
+  return uri.slice(uri.indexOf('base64,') + 7);
 }

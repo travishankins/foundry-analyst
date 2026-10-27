@@ -1,3 +1,4 @@
+import { Bot20Regular } from '@fluentui/react-icons';
 import ArtifactCard from './ArtifactCard';
 import Markdown from './Markdown';
 import ToolCallBlock from './ToolCallBlock';
@@ -16,7 +17,7 @@ export default function Message({ message, openArtifact, onOpenArtifact }) {
 
   return (
     <div className="message assistant">
-      <div className="avatar" aria-hidden="true">✳</div>
+      <div className="avatar" aria-hidden="true"><Bot20Regular /></div>
       <div className="assistant-body">
         {message.toolCalls.map((call) => (
           <ToolCallBlock key={call.id} call={call} />

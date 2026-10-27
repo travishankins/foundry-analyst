@@ -7,6 +7,7 @@ from azure.ai.agents.models import (
     RunStepConnectedAgentToolCall,
     RunStepMcpToolCall,
     RunStepToolCallDetails,
+    ThreadRun,
 )
 
 from app.agent_stream import OrchestratorStream
@@ -48,3 +49,55 @@ def test_in_progress_step_does_not_emit_artifact():
     tc = RunStepConnectedAgentToolCall(id="call_1", connected_agent=RunStepConnectedAgent(name="report_builder"))
     events = _translate(_step(tc, status="in_progress"))
     assert [e["type"] for e in events] == ["tool_call"]
+
+
+def test_hyphenated_agent_name_is_normalized_and_still_builds_artifact():
+    tc = RunStepConnectedAgentToolCall(id="call_1", connected_agent=RunStepConnectedAgent(
+        name="report-builder", output=json.dumps(_dashboard("bar", False))))
+    events = _translate(_step(tc))
+    assert events[0]["name"] == "report_builder"
+    assert events[1]["type"] == "artifact"
+
+
+class _FakeRuns:
+    def __init__(self, events):
+        self.events, self.cancelled = events, []
+
+    def stream(self, **_):
+        runs = self
+
+        class _Ctx:
+            def __enter__(self):
+                return iter(runs.events)
+
+            def __exit__(self, *_):
+                return False
+
+        return _Ctx()
+
+    def cancel(self, thread_id, run_id):
+        self.cancelled.append((thread_id, run_id))
+
+
+class _FakeClient:
+    def __init__(self, events):
+        self.runs = _FakeRuns(events)
+        self.messages = type("M", (), {"create": staticmethod(lambda **_: None)})()
+
+
+def _run_event(status):
+    return (AgentStreamEvent.THREAD_RUN_IN_PROGRESS, ThreadRun(id="run_1", status=status), None)
+
+
+def test_closing_the_stream_early_cancels_the_active_run():
+    client = _FakeClient([_run_event("in_progress"), _run_event("in_progress")])
+    gen = OrchestratorStream(client).run("thread_x", "hi", None)
+    next(gen)
+    gen.close()
+    assert client.runs.cancelled == [("thread_x", "run_1")]
+
+
+def test_finished_run_is_not_cancelled():
+    client = _FakeClient([_run_event("in_progress"), _run_event("completed")])
+    list(OrchestratorStream(client).run("thread_x", "hi", None))
+    assert client.runs.cancelled == []

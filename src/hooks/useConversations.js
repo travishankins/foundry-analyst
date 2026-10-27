@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createConversation } from '../lib/conversation';
 
-const STORAGE_KEY = 'foundry-demo.conversations.v1';
+const STORAGE_PREFIX = 'foundry-demo.conversations.v1';
 
-function load() {
+function load(key) {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const saved = JSON.parse(localStorage.getItem(key));
     if (Array.isArray(saved?.conversations)) {
       // A reload interrupts any in-flight stream, so clear stale pending flags
       const conversations = saved.conversations.map((c) => ({
@@ -20,16 +20,18 @@ function load() {
   return { conversations: [], activeId: null };
 }
 
-export function useConversations() {
-  const [state, setState] = useState(load);
+// Conversations are stored per signed-in user so people sharing a browser never see each other's chats
+export function useConversations(userId = 'anonymous') {
+  const key = `${STORAGE_PREFIX}.${userId}`;
+  const [state, setState] = useState(() => load(key));
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(key, JSON.stringify(state));
     } catch {
       // Quota exceeded: keep working in memory
     }
-  }, [state]);
+  }, [state, key]);
 
   const create = useCallback(() => {
     const conversation = createConversation();

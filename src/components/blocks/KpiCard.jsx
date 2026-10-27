@@ -1,4 +1,6 @@
-const ARROWS = { up: '▲', down: '▼', flat: '▬' };
+import { ArrowDown12Filled, ArrowUp12Filled, Subtract12Filled } from '@fluentui/react-icons';
+
+const ARROWS = { up: <ArrowUp12Filled />, down: <ArrowDown12Filled />, flat: <Subtract12Filled /> };
 
 export default function KpiCard({ block }) {
   return (

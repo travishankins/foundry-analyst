@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Bot24Regular } from '@fluentui/react-icons';
 import Composer from './Composer';
 import Message from './Message';
 
@@ -26,7 +27,7 @@ export default function ChatView({ conversation, streaming, onSend, onStop, open
     return (
       <main className="chat empty">
         <div className="welcome">
-          <div className="welcome-mark" aria-hidden="true">✳</div>
+          <div className="welcome-mark" aria-hidden="true"><Bot24Regular /></div>
           <h1>What would you like to explore?</h1>
           {composer}
           <div className="suggestions">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Dismiss12Regular, Send20Filled, Stop20Filled } from '@fluentui/react-icons';
 
 export default function Composer({ onSend, onStop, streaming, editing, onCancelEdit, autoFocus }) {
   const [value, setValue] = useState('');
@@ -23,7 +24,7 @@ export default function Composer({ onSend, onStop, streaming, editing, onCancelE
       {editing && (
         <div className="edit-chip">
           <span>Editing: {editing}</span>
-          <button onClick={onCancelEdit} aria-label="Stop editing artifact">✕</button>
+          <button onClick={onCancelEdit} aria-label="Stop editing artifact"><Dismiss12Regular /></button>
         </div>
       )}
       <textarea
@@ -45,9 +46,9 @@ export default function Composer({ onSend, onStop, streaming, editing, onCancelE
       <div className="composer-footer">
         <span className="hint">Orchestrator · Fabric data · Microsoft Learn MCP · Report builder</span>
         {streaming ? (
-          <button className="send-btn stop" onClick={onStop} aria-label="Stop">■</button>
+          <button className="send-btn stop" onClick={onStop}           aria-label="Stop"><Stop20Filled /></button>
         ) : (
-          <button className="send-btn" onClick={submit} disabled={!value.trim()} aria-label="Send">↑</button>
+                    <button className="send-btn" onClick={submit} disabled={!value.trim()} aria-label="Send"><Send20Filled /></button>
         )}
       </div>
     </div>

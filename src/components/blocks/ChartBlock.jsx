@@ -16,7 +16,15 @@ import {
   YAxis,
 } from 'recharts';
 
-export const PALETTE = ['#c96442', '#4f7cac', '#7a9e7e', '#d4a24c', '#8b6fae', '#5aa5a5', '#b5555e'];
+export const PALETTE = ['#0f6cbd', '#0f7b7b', '#8764b8', '#ca5010', '#107c10', '#c239b3', '#986f0b'];
+
+const TOOLTIP_STYLE = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-md)',
+  boxShadow: 'var(--shadow-16)',
+  color: 'var(--text)',
+};
 
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const formatTick = (v) => (typeof v === 'number' ? compact.format(v) : v);
@@ -36,7 +44,7 @@ export default function ChartBlock({ block }) {
             <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={formatTick} />
+        <Tooltip formatter={formatTick} contentStyle={TOOLTIP_STYLE} />
         <Legend />
       </PieChart>
     );
@@ -47,7 +55,7 @@ export default function ChartBlock({ block }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis dataKey={xKey} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
         <YAxis tickFormatter={formatTick} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} width={56} />
-        <Tooltip formatter={formatTick} />
+        <Tooltip formatter={formatTick} contentStyle={TOOLTIP_STYLE} />
         {series.length > 1 && <Legend />}
         {series.map((s, i) => {
           const color = PALETTE[i % PALETTE.length];

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@azure/msal-browser": "^5.25.1",
+    "@fluentui/react-icons": "^2.0.344",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^14.4.3",
@@ -21,9 +23,9 @@
     "@adobe/css-tools": "^4.3.1"
   },
   "scripts": {
-    "start": "BROWSER=none WDS_SOCKET_PORT=0 vite --port 3000",
-    "api": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
-    "api:mock": "cd backend && MOCK_AGENTS=1 .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "start": "vite --port 3000",
+    "api": "node scripts/api.mjs",
+    "api:mock": "node scripts/api.mjs --mock",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest"

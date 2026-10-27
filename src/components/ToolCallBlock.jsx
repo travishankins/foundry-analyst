@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronDown16Regular, ChevronRight16Regular, ErrorCircle16Filled, CheckmarkCircle16Filled } from '@fluentui/react-icons';
 
 const LABELS = {
   fabric_data: 'Queried Fabric data agent',
@@ -6,6 +7,8 @@ const LABELS = {
   report_builder: 'Built artifact',
   fabric_dataagent: 'Fabric data agent',
 };
+
+const labelFor = (name) => LABELS[name] ?? (name.startsWith('microsoft_learn.') ? 'Searched Microsoft Learn' : `Used ${name}`);
 
 const pretty = (value) => {
   if (value === undefined || value === null || value === '') return null;
@@ -21,18 +24,18 @@ export default function ToolCallBlock({ call }) {
   const [open, setOpen] = useState(false);
   const args = pretty(call.arguments);
   const output = pretty(call.output);
-  const label = LABELS[call.name] ?? `Used ${call.name}`;
+  const label = labelFor(call.name);
   const running = call.status === 'in_progress';
 
   return (
     <div className={`tool-call status-${call.status}`}>
       <button className="tool-call-header" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="tool-status" aria-hidden="true">
-          {running ? <span className="spinner" /> : call.status === 'completed' ? '✓' : '!'}
+          {running ? <span className="spinner" /> : call.status === 'completed' ? <CheckmarkCircle16Filled /> : <ErrorCircle16Filled />}
         </span>
         <span className="tool-label">{label}</span>
         <span className="tool-kind">{call.kind === 'connected_agent' ? `agent · ${call.name}` : call.kind}</span>
-        <span className="chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <span className="chevron" aria-hidden="true">{open ? <ChevronDown16Regular /> : <ChevronRight16Regular />}</span>
       </button>
       {open && (
         <div className="tool-call-body">

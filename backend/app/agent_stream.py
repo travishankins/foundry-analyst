@@ -1,6 +1,7 @@
 """Runs the orchestrator and translates Foundry stream events into the app's SSE event shape."""
 
 import json
+import logging
 from collections.abc import Iterator
 from typing import Any
 
@@ -21,7 +22,14 @@ from pydantic import ValidationError
 from .artifact_schema import Artifact, parse_artifact
 from .settings import settings
 
+log = logging.getLogger("uvicorn.error")
+
 REPORT_TOOL_NAME = "report_builder"
+TERMINAL_RUN_STATUSES = {"completed", "failed", "cancelled", "expired", "incomplete"}
+
+
+def _status(value: Any) -> str:
+    return str(value).split(".")[-1].lower()
 
 
 def _plain(value: Any) -> Any:
@@ -42,8 +50,9 @@ def _describe_tool_call(tc: Any) -> dict:
     info: dict[str, Any] = {"id": getattr(tc, "id", None), "kind": kind, "name": kind, "arguments": None, "output": None}
     if kind == "connected_agent" and getattr(tc, "connected_agent", None):
         ca = tc.connected_agent
-        info.update(name=getattr(ca, "name", None) or kind, arguments=getattr(ca, "arguments", None),
-                    output=getattr(ca, "output", None))
+        # Agent names use hyphens (report-builder) while tool names use underscores; normalize for matching
+        name = (getattr(ca, "name", None) or kind).replace("-", "_")
+        info.update(name=name, arguments=getattr(ca, "arguments", None), output=getattr(ca, "output", None))
     elif kind == "mcp":
         info.update(name=f"{getattr(tc, 'server_label', 'mcp')}.{getattr(tc, 'name', '') or ''}".rstrip("."),
                     arguments=getattr(tc, "arguments", None), output=getattr(tc, "output", None))
@@ -55,6 +64,8 @@ def _describe_tool_call(tc: Any) -> dict:
 class OrchestratorStream:
     def __init__(self, client: AgentsClient):
         self.client = client
+        self._run_id: str | None = None
+        self._run_finished = False
 
     def run(self, thread_id: str, content: str, artifact_context: dict | None) -> Iterator[dict]:
         if artifact_context:
@@ -65,9 +76,21 @@ class OrchestratorStream:
         self.client.messages.create(thread_id=thread_id, role="user", content=content)
         edit_id = artifact_context.get("artifact_id") if artifact_context else None
 
-        with self.client.runs.stream(thread_id=thread_id, agent_id=settings.orchestrator_agent_id) as stream:
-            for event_type, data, _ in stream:
-                yield from self._translate(stream, thread_id, event_type, data, edit_id)
+        try:
+            with self.client.runs.stream(thread_id=thread_id, agent_id=settings.orchestrator_agent_id) as stream:
+                for event_type, data, _ in stream:
+                    yield from self._translate(stream, thread_id, event_type, data, edit_id)
+        finally:
+            self._cancel_if_active(thread_id)
+
+    def _cancel_if_active(self, thread_id: str) -> None:
+        """Client disconnects (Stop button) close this generator; cancel so the thread accepts the next message."""
+        if not self._run_id or self._run_finished:
+            return
+        try:
+            self.client.runs.cancel(thread_id=thread_id, run_id=self._run_id)
+        except Exception:
+            log.warning("Could not cancel run %s", self._run_id, exc_info=True)
 
     def _translate(self, stream, thread_id, event_type, data, edit_id) -> Iterator[dict]:
         if isinstance(data, MessageDeltaChunk):
@@ -85,7 +108,7 @@ class OrchestratorStream:
             details = data.step_details
             if getattr(details, "type", None) != "tool_calls":
                 return
-            status = str(data.status).split(".")[-1].lower()
+            status = _status(data.status)
             for tc in details.tool_calls or []:
                 info = _describe_tool_call(tc)
                 yield {"type": "tool_call", "status": status, **info}
@@ -93,7 +116,9 @@ class OrchestratorStream:
                     yield from self._artifact_event(info["output"], edit_id)
 
         elif isinstance(data, ThreadRun):
-            status = str(data.status).split(".")[-1].lower()
+            status = _status(data.status)
+            self._run_id = data.id
+            self._run_finished = status in TERMINAL_RUN_STATUSES
             yield {"type": "run_status", "status": status, "run_id": data.id}
             if event_type == AgentStreamEvent.THREAD_RUN_REQUIRES_ACTION and isinstance(data.required_action, SubmitToolApprovalAction):
                 approvals = [
@@ -104,7 +129,7 @@ class OrchestratorStream:
                 self.client.runs.submit_tool_outputs_stream(
                     thread_id=thread_id, run_id=data.id, tool_approvals=approvals, event_handler=stream
                 )
-            elif status in {"failed", "cancelled", "expired"}:
+            elif status in {"failed", "cancelled", "expired", "incomplete"}:
                 err = data.last_error
                 yield {"type": "error", "message": getattr(err, "message", None) or f"Run {status}"}
 
@@ -133,7 +158,7 @@ class OrchestratorStream:
                 content=f"This artifact JSON failed validation: {error[:2000]}\nReturn a corrected artifact.\n\n{output[:100_000]}",
             )]),
         )
-        if str(run.status).split(".")[-1].lower() != "completed":
+        if _status(run.status) != "completed":
             return None
         msg = self.client.messages.get_last_message_text_by_role(thread_id=run.thread_id, role="assistant")
         try:

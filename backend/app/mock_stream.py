@@ -11,7 +11,7 @@ SALES = [
     {"month": "Aug", "north": 195500, "south": 150200, "west": 128900},
     {"month": "Sep", "north": 210300, "south": 149800, "west": 141700},
 ]
-CATEGORIES = [["Bikes", 612400, 0.31], ["Components", 241900, 0.22], ["Clothing", 98700, 0.38], ["Accessories", 66400, 0.44]]
+CATEGORIES = [["Bikes", 612400, 31.0], ["Components", 241900, 22.0], ["Clothing", 98700, 38.0], ["Accessories", 66400, 44.0]]
 
 
 def _dashboard(chart_type: str, with_margin: bool) -> dict:
@@ -36,7 +36,7 @@ def _dashboard(chart_type: str, with_margin: bool) -> dict:
                  "series": [{"key": "revenue"}],
                  "data": [{"category": c, "revenue": r} for c, r, _ in CATEGORIES]},
             ]},
-            {"type": "table", "title": "Category performance", "columns": ["Category", "Revenue", "Margin"],
+            {"type": "table", "title": "Category performance", "columns": ["Category", "Revenue", "Margin %"],
              "rows": [[c, r, m] for c, r, m in CATEGORIES]},
         ],
     }
@@ -92,7 +92,10 @@ def mock_run(content: str, artifact_context: dict | None) -> Iterator[dict]:
 
     if wants_artifact:
         if artifact_context:
-            spec = _dashboard("line" if "line" in lower else "bar", with_margin="margin" in lower or "kpi" in lower)
+            if artifact_context.get("kind") == "report":
+                spec = _report()
+            else:
+                spec = _dashboard("line" if "line" in lower else "bar", with_margin="margin" in lower or "kpi" in lower)
             spec["artifact_id"] = artifact_context.get("artifact_id", spec["artifact_id"])
         else:
             spec = _report() if "report" in lower else _dashboard("bar", with_margin=False)

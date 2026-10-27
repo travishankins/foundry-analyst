@@ -4,15 +4,16 @@
     "cpus": 4
   },
   "waitFor": "onCreateCommand",
-  "updateContentCommand": "npm install",
+  "updateContentCommand": "npm install && cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
   "postCreateCommand": "",
   "postAttachCommand": {
-    "server": "npm start"
+    "server": "npm start",
+    "api": "npm run api:mock"
   },
   "customizations": {
     "codespaces": {
       "openFiles": [
-        "src/App.jsx"
+        "README.md"
       ]
     }
   },
@@ -20,7 +21,10 @@
     "3000": {
       "label": "Application",
       "onAutoForward": "openPreview"
+    },
+    "8000": {
+      "label": "API"
     }
   },
-  "forwardPorts": [3000]
+  "forwardPorts": [3000, 8000]
 }

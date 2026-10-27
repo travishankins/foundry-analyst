@@ -26,21 +26,31 @@ export function useAgentStream({ create, update, onArtifact }) {
       setStreamingId(conv.id);
 
       try {
+        const stream = (id) =>
+          streamMessage({
+            threadId: id,
+            content,
+            artifactContext,
+            signal: controller.signal,
+            onEvent: (event) => {
+              apply(event);
+              if (event.type === 'artifact') onArtifact?.(event.artifact.artifact_id);
+            },
+          });
         let threadId = conv.threadId;
         if (!threadId) {
           threadId = await createThread();
           update(conv.id, (c) => ({ ...c, threadId }));
         }
-        await streamMessage({
-          threadId,
-          content,
-          artifactContext,
-          signal: controller.signal,
-          onEvent: (event) => {
-            apply(event);
-            if (event.type === 'artifact') onArtifact?.(event.artifact.artifact_id);
-          },
-        });
+        try {
+          await stream(threadId);
+        } catch (err) {
+          // The saved thread no longer exists server-side (e.g. the server restarted): start a fresh one once
+          if (err.status !== 404 || !conv.threadId) throw err;
+          threadId = await createThread();
+          update(conv.id, (c) => ({ ...c, threadId }));
+          await stream(threadId);
+        }
       } catch (err) {
         if (err.name !== 'AbortError') apply({ type: 'error', message: err.message });
       } finally {

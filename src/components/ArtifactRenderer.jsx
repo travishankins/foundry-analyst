@@ -1,9 +1,36 @@
+import { Component } from 'react';
 import ChartBlock from './blocks/ChartBlock';
 import DataTable from './blocks/DataTable';
 import KpiCard from './blocks/KpiCard';
 import Markdown from './Markdown';
 
+// Model-generated blocks can be malformed; contain the failure to that block instead of blanking the app
+class BlockBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.error('Artifact block failed to render', error);
+  }
+
+  render() {
+    if (this.state.failed) return <div className="unknown-block">This block could not be rendered.</div>;
+    return this.props.children;
+  }
+}
+
 function Block({ block }) {
+  return (
+    <BlockBoundary>
+      <BlockContent block={block} />
+    </BlockBoundary>
+  );
+}
+
+function BlockContent({ block }) {
   switch (block?.type) {
     case 'kpi':
       return <KpiCard block={block} />;
@@ -30,7 +57,7 @@ export default function ArtifactRenderer({ artifact }) {
   return (
     <article className={`artifact-doc kind-${artifact.kind}`}>
       <h1>{artifact.title}</h1>
-      {artifact.blocks.map((block, i) => (
+      {(artifact.blocks ?? []).map((block, i) => (
         <Block key={i} block={block} />
       ))}
     </article>
